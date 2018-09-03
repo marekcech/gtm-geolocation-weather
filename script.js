@@ -1,0 +1,157 @@
+<script>
+var apikey = '2e3dfb169b90deca1a6db53c77c2f01e'; // Your API key from https://openweathermap.org
+var expire = 60;    // Time to store weather information in minutes to prevent API overload
+
+(function(api, units, expire) {
+	
+  // helper function for loading JSONs from API
+	function loadJSON(path, success, error) {
+		var xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				if (xhr.status === 200) {
+					if (success) success(JSON.parse(xhr.responseText));
+				} else {
+					if (error) error(xhr);
+				}
+			}
+		}
+		
+		xhr.open('GET', path, true);
+		xhr.send();
+	}
+	
+	// pushing the weather to datalayer
+	function pushWeather(st, gr, ds, tp) {
+		window.dataLayer = window.dataLayer || [];
+		dataLayer.push({
+			event: 'weather',
+			weather:{
+				station: st,
+				main: gr,
+				description: ds,
+				temperature: tp
+			}
+		});
+	}
+	
+  // save the weather to cookies at user side
+	function setWeather(data) {
+		var station = data.list[0].name;
+		var main    = data.list[0].weather[0].main;
+		var detail  = data.list[0].weather[0].description;
+		var temp    = Math.round(data.list[0].main.temp);
+		
+		pushWeather(station, main, detail, temp);
+		
+		var date = new Date(); date.setTime(date.getTime() + (expire * 60000));
+		document.cookie = 'gtm.weather.station=' + station + '; expires=' + date.toGMTString() + '; path=/';
+		document.cookie = 'gtm.weather.main=' + main + '; expires=' + date.toGMTString() + '; path=/';
+		document.cookie = 'gtm.weather.detail=' + detail + '; expires=' + date.toGMTString() + '; path=/';
+		document.cookie = 'gtm.weather.temperature=' + temp + '; expires=' + date.toGMTString() + '; path=/';
+	}
+	
+  // look for a weather based on location
+	function getWeather(data) {
+		var lat = data.ipgeo.latitude;
+		var lon = data.ipgeo.longtitude;
+       
+       // debug for preview mode - can be commented later 
+      dataLayer.push({'event':'myLocationacceptedGeo','lati':lat,'longi':lon});
+
+		
+		loadJSON('https://api.openweathermap.org/data/2.5/find?lat=' + lat + '&lon=' + lon + '&cnt=1&units=' + units + '&appid=' + api, function(data) { setWeather(data); });
+	}
+
+	// get weather based on browser geolocation
+	function getWeatherBrowser(dlat,dlon) {
+
+         var lat = dlat;
+		var lon = dlon;
+
+	// debug for preview mode - can be commented later
+		dataLayer.push({'event':'myLocationdenied','lati':dlat,'longi':dlon});
+		
+		loadJSON('https://api.openweathermap.org/data/2.5/find?lat=' + lat + '&lon=' + lon + '&cnt=1&units=' + units + '&appid=' + api, function(data) { setWeather(data); });
+   
+	}
+
+  	// when geolocation succeed run this function
+
+  		function successloc(position) {
+  			// debug
+ 			// console.log("" \nLat : "+position.coords.latitude+" \nLang :"+ position.coords.longitude);
+ 			
+ 			var lati = position.coords.latitude;
+ 			var longi = position.coords.longitude;
+ 			var lat2 = lati.toFixed(4);
+ 			var long2 = longi.toFixed(4);
+           // for privacy reasons you might approximate the position by rounding to only 2 digits eg. 47.3321 will be 47.33
+           // var lat2 = lati.toFixed(2);
+ 		   // var long2 = longi.toFixed(2);
+ 		   // debug for preview mode - can be commented later
+
+ 			dataLayer.push({'event':'mylocationaccepted','lati':lat2,'longi':long2});
+ 			getWeatherBrowser(lat2,long2); 
+
+		}
+
+  	// when geolocation fails run this function as second call and do IP geolocation insted
+
+		 function errorloc(err) { 
+  				 
+           	// debug for preview mode - can be commented later
+
+      			dataLayer.push({'event':'myLocationdenied','error message':err.message});
+
+      			loadJSON('https://apps.martinkaspar.net/api/geo/', function(data) { getWeather(data); });
+      			
+		}
+	
+	// ask for the weather of visitor
+	function currentWeather() {
+
+		var locations=window.location.protocol;
+
+		if (locations != "https:"){
+ 				loadJSON('https://apps.martinkaspar.net/api/geo/', function(data) { getWeather(data); });
+ 	    } else {
+
+ 		//check geolocation available
+ 		 if ("geolocation" in navigator) { 
+
+
+		
+ 		// try to get user current location using getCurrentPosition() method
+ 		// you can use variant with our without timeout
+ 		// navigator.geolocation.getCurrentPosition(successloc, errorloc );
+ 		// you can use variant with timeout which triggers the second call back
+
+ 		 navigator.geolocation.getCurrentPosition(successloc, errorloc, {timeout:15000} );
+ 	
+
+ 			} else { 
+ 				loadJSON('https://apps.martinkaspar.net/api/geo/', function(data) { getWeather(data); });
+			}
+		}
+	}
+
+	// if cookies enabled read the weather from them
+	if (navigator.cookieEnabled) {
+		var station = (document.cookie.match(/^(?:.*;)?\s*gtm.weather.station=\s*([^;]+)(?:.*)?$/)||[,null])[1];
+		var main    = (document.cookie.match(/^(?:.*;)?\s*gtm.weather.main=\s*([^;]+)(?:.*)?$/)||[,null])[1];
+		var detail  = (document.cookie.match(/^(?:.*;)?\s*gtm.weather.detail=\s*([^;]+)(?:.*)?$/)||[,null])[1];
+		var temp    = (document.cookie.match(/^(?:.*;)?\s*gtm.weather.temperature=\s*([^;]+)(?:.*)?$/)||[,null])[1];
+		
+		// if some all the cookies were loaded push to datalyer
+		if (station !== null && main !== null && detail !== null && temp !== null) {
+			pushWeather(station, main, detail, temp);
+
+		// if not do the geolocation and ask for the weather
+		} else {
+			currentWeather();
+		}
+	}
+	
+})(apikey, 'metric', expire);
+</script>
