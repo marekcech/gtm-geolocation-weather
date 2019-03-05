@@ -59,8 +59,8 @@ var expire = 60;    // Time to store weather information in minutes to prevent A
 		var lat = data.ipgeo.latitude;
 		var lon = data.ipgeo.longtitude;
        
-       // debug for preview mode - can be commented later 
-      dataLayer.push({event:myLocationacceptedGeo,lati:lat,longi:lon});
+        // debug for preview mode - can be commented later 
+        dataLayer.push({event:'myLocationacceptedGeoIP',lati:lat,longi:lon});
 
 		
 		loadJSON('https://api.openweathermap.org/data/2.5/find?lat=' + lat + '&lon=' + lon + '&cnt=1&units=' + units + '&appid=' + api, function(data) { setWeather(data); });
@@ -69,11 +69,11 @@ var expire = 60;    // Time to store weather information in minutes to prevent A
 	// get weather based on browser geolocation
 	function getWeatherBrowser(dlat,dlon) {
 
-         var lat = dlat;
+        var lat = dlat;
 		var lon = dlon;
 
 	// debug for preview mode - can be commented later
-		dataLayer.push({event:myLocationdenied,lati:dlat,longi:dlon});
+		dataLayer.push({event:'myLocationBrowser',lati:dlat,longi:dlon});
 		
 		loadJSON('https://api.openweathermap.org/data/2.5/find?lat=' + lat + '&lon=' + lon + '&cnt=1&units=' + units + '&appid=' + api, function(data) { setWeather(data); });
    
@@ -94,7 +94,7 @@ var expire = 60;    // Time to store weather information in minutes to prevent A
  		   // var long2 = longi.toFixed(2);
  		   // debug for preview mode - can be commented later
 
- 			dataLayer.push({event:mylocationaccepted,lati:lat2,longi:long2});
+ 			dataLayer.push({event:'mylocationBrowserAccepted',lati:lat2,longi:long2});
  			getWeatherBrowser(lat2,long2); 
 
 		}
@@ -105,7 +105,12 @@ var expire = 60;    // Time to store weather information in minutes to prevent A
   				 
            	// debug for preview mode - can be commented later
 
-      			dataLayer.push({event:myLocationdenied,error message:err.message});
+      			dataLayer.push({
+                  event: 'myLocationBrowserDenied',
+                  error_message: err.message
+                
+                });
+    
 
       			loadJSON('https://apps.martinkaspar.net/api/geo/', function(data) { getWeather(data); });
       			
@@ -121,7 +126,7 @@ var expire = 60;    // Time to store weather information in minutes to prevent A
  	    } else {
 
  		//check geolocation available
- 		 if ("geolocation" in navigator) { 
+ 		  if ("geolocation" in navigator) { 
 
 
 		
